@@ -1,6 +1,7 @@
 from enum import Enum
 import numpy as np
 from scipy.stats import norm
+from scipy.signal import lfilter
 
 class PET(Enum):
     PE = 1
@@ -32,6 +33,7 @@ class SiPM:
         self.gate = float(conf['gate']) 
         self.pre = float(conf['pre'])
         self.sampling = float(conf['sampling'])
+        #self.peak_f = norm(0, float(conf['sigma']))
 
         self.pe_list = []
 
@@ -54,15 +56,16 @@ class SiPM:
     def trigger(self):
         self.pe_list.sort(key=lambda x: x.t)
 
-        t0 = -1
+        t0 = np.nan
         for pe in self.pe_list:
             if pe.pet == PET.PE or pe.pet == PET.DCR:
                 if pe.c > self.thresh:
-#                np.random.sample() < self.eff:
                     t0 = pe.t
                     break
+#                else: print("lost " + str(pe))
+#                np.random.sample() < self.eff:
 
-        if t0 < 0: 
+        if np.isnan(t0): 
             self.pe_list.clear()
             return
 
@@ -90,10 +93,17 @@ class SiPM:
 
     def wav(self):
         b = lambda t : int(round(t / self.sampling))
-        w = np.zeros(b(self.gate) + 1)
-        for pe in self.pe_list: w[b(pe.t)] += pe.charge
+        pre = self.ap_tau * 3
+        w = np.zeros(b(self.gate + pre) + 1)
+        for pe in self.pe_list: 
+            if pe.t > -pre and pe.t < self.gate:
+                w[b(pe.t)] += pe.c
 
-        print(w.sum() / self.gain)
+        w = lfilter([1], [1, 1 / self.tau - 1], w)
+
+        #[pre:(self.gate + pre)]
+
+        print(w.sum())
         return w
 
 
