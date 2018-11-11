@@ -29,19 +29,22 @@ class SiPM:
         self.ap_tau = float(conf['ap-tau'])
         self.dict = float(conf['dict'])
 
-        self.thresh = norm.ppf(1-float(conf['eff']), 1, self.spread) * self.gain
+        self.sigma = float(conf['sigma'])
+        self.scale = float(conf['scale'])
+
+        self.thresh = norm.ppf(1-float(conf['eff']), 1, self.spread)
+        self.timing = float(conf['timing'])
         self.gate = float(conf['gate']) 
         self.pre = float(conf['pre'])
         self.sampling = float(conf['sampling'])
-        #self.peak_f = norm(0, float(conf['sigma']))
 
         self.pe_list = []
 
     def _add_pe(self, t, pet, c = 1): 
-        self.pe_list.append(PE(t, pet, c * self.gain * np.random.normal(1, self.spread)))
+        self.pe_list.append(PE(t, pet, c * np.random.normal(1, self.spread)))
 
     def add_pes(self, ts):
-        if not isinstance(ts, list): ts = [ ts ]
+        if isinstance(ts, (int, float)): ts = [ ts ]
         for t in ts: 
             self._add_pe(t, PET.PE)
 
@@ -69,8 +72,9 @@ class SiPM:
             self.pe_list.clear()
             return
 
+        r = np.random.normal(0, self.timing)
         for i, o in enumerate(self.pe_list):
-            self.pe_list[i].t = o.t - t0 + self.pre
+            self.pe_list[i].t = o.t - t0 + self.pre + r
 
 
     def add_noises(self):
@@ -92,19 +96,32 @@ class SiPM:
 
 
     def wav(self):
-        b = lambda t : int(round(t / self.sampling))
+        b = lambda t: int(round(t * self.sampling))
         pre = self.ap_tau * 3
         w = np.zeros(b(self.gate + pre) + 1)
         for pe in self.pe_list: 
             if pe.t > -pre and pe.t < self.gate:
                 w[b(pe.t)] += pe.c
 
-        w = lfilter([1], [1, 1 / self.tau - 1], w)
+        w = lfilter([self.scale * self.gain], [1, 1 / (self.tau * self.sampling) - 1], w)
+#        print(w.sum())
+#        print(max(w))
 
-        #[pre:(self.gate + pre)]
 
-        print(w.sum())
-        return w
+        r = range(-b(self.sigma * 3), b(self.sigma * 3) + 1)
+        for pe in self.pe_list: 
+          g = lambda x: (1 - self.scale) * self.gain * np.exp(-((x / self.sampling - pe.t) / self.sigma)**2)
+          for i in r:
+              x = i + b(pe.t)
+              if 0 <= x < w.size: 
+                  w[x] += g(x)
+
+#        print(w.sum())
+#        print(max(w))
+
+#        for i in w[b(pre-50e-9):b(pre + 500e-9)]: print(i)
+
+        return w[b(pre):b(self.gate + pre)]
 
 
 
