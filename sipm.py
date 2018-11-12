@@ -37,6 +37,10 @@ class SiPM:
         self.gate = float(conf['gate']) 
         self.pre = float(conf['pre'])
         self.sampling = float(conf['sampling'])
+        self.binning = int(conf['binning'])
+        self.baseline = int(conf['baseline'])
+        self.noise = self.gain / float(conf['snr'])
+        self.top = 2**int(conf['bits']) * self.binning
 
         self.pe_list = []
 
@@ -74,7 +78,7 @@ class SiPM:
 
         r = np.random.normal(0, self.timing)
         for i, o in enumerate(self.pe_list):
-            self.pe_list[i].t = o.t - t0 + self.pre + r
+            self.pe_list[i].t = o.t - t0 + r
 
 
     def add_noises(self):
@@ -97,31 +101,45 @@ class SiPM:
 
     def wav(self):
         b = lambda t: int(round(t * self.sampling))
-        pre = self.ap_tau * 3
-        w = np.zeros(b(self.gate + pre) + 1)
-        for pe in self.pe_list: 
-            if pe.t > -pre and pe.t < self.gate:
-                w[b(pe.t)] += pe.c
 
-        w = lfilter([self.scale * self.gain], [1, 1 / (self.tau * self.sampling) - 1], w)
-#        print(w.sum())
-#        print(max(w))
+        fill = self.ap_tau * 3
+        w = np.zeros(b(self.gate + fill) + 1)
+
+        if self.tau > 0:
+            for pe in self.pe_list: 
+                t = pe.t + self.pre + fill
+                if 0 < t < self.gate:
+                    w[b(t)] += pe.c
+            w = lfilter([self.scale * self.gain], [1, 1 / (self.tau * self.sampling) - 1], w)
 
 
-        r = range(-b(self.sigma * 3), b(self.sigma * 3) + 1)
-        for pe in self.pe_list: 
-          g = lambda x: (1 - self.scale) * self.gain * np.exp(-((x / self.sampling - pe.t) / self.sigma)**2)
-          for i in r:
-              x = i + b(pe.t)
-              if 0 <= x < w.size: 
-                  w[x] += g(x)
+        if self.sigma > 0:
+            r = range(-b(self.sigma * 3), b(self.sigma * 3) + 1)
+            for pe in self.pe_list: 
+                t = pe.t + self.pre + fill
+                if not 0 < t < self.gate: continue
+                g = lambda x: (1 - self.scale) * self.gain * np.exp(-((x / self.sampling - t) / self.sigma)**2)
+                for i in r:
+                    x = i + b(t)
+                    if 0 <= x < w.size: 
+                        w[x] += g(x)
+
+
+        w = w[b(fill):b(self.gate + fill)] + self.baseline
+
+        if self.noise > 0:
+            w += np.random.normal(0, self.noise, w.size)
+
+        w = np.round(w / self.binning) * self.binning
+
+        w = np.clip(w, 0, self.top)
 
 #        print(w.sum())
 #        print(max(w))
 
 #        for i in w[b(pre-50e-9):b(pre + 500e-9)]: print(i)
 
-        return w[b(pre):b(self.gate + pre)]
+        return w
 
 
 
