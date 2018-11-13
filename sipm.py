@@ -39,7 +39,8 @@ class SiPM:
         self.sampling = float(conf['sampling'])
         self.binning = int(conf['binning'])
         self.baseline = int(conf['baseline'])
-        self.noise = self.gain / float(conf['snr'])
+        snr = float(conf['snr'])
+        self.noise = self.gain / snr if snr > 0 else 0
         self.top = 2**int(conf['bits']) * self.binning
 
         self.pe_list = []
@@ -102,13 +103,13 @@ class SiPM:
     def wav(self):
         b = lambda t: int(round(t * self.sampling))
 
-        fill = self.ap_tau * 3
+        fill = self.tau * 3
         w = np.zeros(b(self.gate + fill) + 1)
 
         if self.tau > 0:
             for pe in self.pe_list: 
                 t = pe.t + self.pre + fill
-                if 0 < t < self.gate:
+                if 0 < t < self.gate + fill:
                     w[b(t)] += pe.c
             w = lfilter([self.scale * self.gain], [1, 1 / (self.tau * self.sampling) - 1], w)
 
@@ -117,12 +118,12 @@ class SiPM:
             r = range(-b(self.sigma * 3), b(self.sigma * 3) + 1)
             for pe in self.pe_list: 
                 t = pe.t + self.pre + fill
-                if not 0 < t < self.gate: continue
-                g = lambda x: (1 - self.scale) * self.gain * np.exp(-((x / self.sampling - t) / self.sigma)**2)
-                for i in r:
-                    x = i + b(t)
-                    if 0 <= x < w.size: 
-                        w[x] += g(x)
+                if 0 < t < self.gate + fill: 
+                    g = lambda x: (1 - self.scale) * self.gain * np.exp(-((x / self.sampling - t) / self.sigma)**2)
+                    for i in r:
+                        x = i + b(t)
+                        if 0 <= x < w.size: 
+                            w[x] += g(x)
 
 
         w = w[b(fill):b(self.gate + fill)] + self.baseline
@@ -134,12 +135,7 @@ class SiPM:
 
         w = np.clip(w, 0, self.top)
 
-#        print(w.sum())
-#        print(max(w))
-
-#        for i in w[b(pre-50e-9):b(pre + 500e-9)]: print(i)
-
-        return w
+        return w.astype(int)
 
 
 
