@@ -120,7 +120,7 @@ class SiPM:
             for pe in self.pe_list: 
                 t = pe.t + self.pre + fill
                 if 0 < t < self.gate + fill: 
-                    g = lambda x: (1 - self.scale) * self.gain * np.exp(-((x / self.sampling - t) / self.sigma)**2)
+                    g = lambda x: (1 - self.scale) * self.gain * np.exp(-0.5 * ((x / self.sampling - t) / self.sigma)**2)
                     for i in r:
                         x = i + b(t)
                         if 0 <= x < w.size: 
