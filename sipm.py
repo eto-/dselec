@@ -32,7 +32,8 @@ class SiPM:
         self.sigma = float(conf['sigma'])
         self.scale = float(conf['scale'])
 
-        self.thresh = norm.ppf(1-float(conf['eff']), 1, self.spread)
+        eff = float(conf['eff'])
+        self.thresh = norm.ppf(1 - eff, 1, self.spread) if (eff > 0) else 0
         self.timing = float(conf['timing'])
         self.gate = float(conf['gate']) 
         self.pre = float(conf['pre'])
@@ -67,7 +68,7 @@ class SiPM:
         t0 = np.nan
         for pe in self.pe_list:
             if pe.pet == PET.PE or pe.pet == PET.DCR:
-                if pe.c > self.thresh:
+                if not self.thresh or pe.c > self.thresh:
                     t0 = pe.t
                     break
 #                else: print("lost " + str(pe))
