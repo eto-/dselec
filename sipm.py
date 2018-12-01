@@ -33,7 +33,7 @@ class SiPM:
         self.scale = float(conf['scale'])
 
         eff = float(conf['eff'])
-        self.thresh = norm.ppf(1 - eff, 1, self.spread) if (eff > 0) else 0
+        self.thresh = 0 if not eff > 0 or not self.spread > 0 else norm.ppf(1 - eff, 1, self.spread)
         self.timing = float(conf['timing'])
         self.gate = float(conf['gate']) 
         self.pre = float(conf['pre'])
@@ -47,7 +47,10 @@ class SiPM:
         self.pe_list = []
 
     def _add_pe(self, t, pet, c = 1): 
-        self.pe_list.append(PE(t, pet, c * np.random.normal(1, self.spread)))
+        if self.spread >= 0:
+            self.pe_list.append(PE(t, pet, c * np.random.normal(1, self.spread)))
+        else:
+            self.pe_list.append(PE(t, pet, c))
 
     def add_pes(self, ts):
         if isinstance(ts, (int, float)): ts = [ ts ]
@@ -62,13 +65,13 @@ class SiPM:
                 ts = np.random.uniform(start, 2 * self.gate, n)
                 for t in ts: self._add_pe(t, PET.DCR)
 
-    def trigger(self):
+    def trigger(self, skip_threshold = False):
         self.pe_list.sort(key=lambda x: x.t)
 
         t0 = np.nan
         for pe in self.pe_list:
             if pe.pet == PET.PE or pe.pet == PET.DCR:
-                if not self.thresh or pe.c > self.thresh:
+                if not self.thresh or skip_threshold or pe.c > self.thresh:
                     t0 = pe.t
                     break
 #                else: print("lost " + str(pe))
