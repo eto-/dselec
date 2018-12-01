@@ -24,40 +24,66 @@ class Main:
 
         self.s = SiPM(self.c['__current__'])
 
-        self.v_sum = []
-        self.v_max = []
-        self.v_sd = []
+
+        self.phct = float(self.c['__current__']['phct'])
+
+
+    def __phct(self):
+        r = 1
+        for i in range(0, np.random.poisson(self.phct)): r += self.__phct()
+        return r
+
+    def _phct(self, n):
+        if self.phct <= 0: return n
+        r = 0
+        for i in range(0, n): r += self.__phct()
+        return r
 
     def test_loop(self, n, npe=1, noises=True, rate=100):
         bs = float(self.c['__current__']['baseline'])
+        v_sum = []
+        v_max = []
+        v_sd = []
         for i in range(0, n):
             self.s.pe_list.clear()
 
             if npe < 0: self.s.add_pes(np.zeros(-npe))
-            elif npe > 0: self.s.add_pes(np.random.exponential(1.5e-6, np.random.poisson(npe)))
+            elif npe > 0: self.s.add_pes(np.random.exponential(1.5e-6, self._phct(np.random.poisson(npe))))
  
             if noises: self.s.add_dcr()
 
-            self.s.trigger()
+            self.s.trigger(not noises)
 
             if noises: self.s.add_noises()
 
             w = self.s.wav()
 
-            self.v_sum.append(np.sum(w) - bs * w.size)
-            self.v_max.append(np.max(w))
-            self.v_sd.append(np.std(w))
+            v_sum.append(np.sum(w) - bs * w.size)
+            v_max.append(np.max(w))
+            v_sd.append(np.std(w))
 
             self.o.write(np.random.exponential(1/rate), w)
 
+        with open('peak.txt', 'w') as f: 
+            for i in v_sum: 
+                f.write("%d\n" % i)
+        return (np.mean(v_sum), np.std(v_sum), np.mean(v_max), np.mean(v_sd))
+
+
 
 m = Main(None, None)
-m.test_loop(5000, 1, True)
+
+it = 50000
+spe = m.test_loop(it, -1, False)
+print("SPE mean charge = %.2f with sd = %.2f (spread = %.2f)" % (spe[0], spe[1], spe[1]/spe[0]))
+
+n = 220
+sim = m.test_loop(it, n, True)
+print("Simulated %d npe (phct = %d)" % (n, n * 1/(1 - m.phct)))
+print("Total npe = %.2f with sd = %.2f (spread = %.2f <-> expected %.2f)" % (sim[0] / spe[0], sim[1] / spe[0], sim[1]/sim[0], np.sqrt(spe[0] / sim[0])))
+
+
 #cProfile.run('m.test_loop(5000, 100, True)')
-
-k = np.mean(m.v_sum)
-
-print("mean=%.2f sd=%.2f r=%.2f" % (np.mean(m.v_sum), np.std(m.v_sum), np.mean(m.v_sum)/np.std(m.v_sum)))
 #print("mean2=" + str(np.mean(v2)))
 
 #plt.plot(w)
