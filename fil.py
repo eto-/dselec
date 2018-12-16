@@ -31,6 +31,9 @@ class FIL:
         self.header = HEADER(self.__get(HEADER_FMT))
         self.n = 0
 
+    def __del__(self):
+        self.file.close()
+
     def __io(self, size):
         b = self.file.read(size)
         if len(b) != size:
