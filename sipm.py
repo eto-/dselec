@@ -105,7 +105,7 @@ class SiPM:
 
 
     def wav(self):
-        b = lambda t: int(round(t * self.sampling))
+        b = lambda t: int(np.round(t * self.sampling))
 
         fill = self.tau * 3
         w = np.zeros(b(self.gate + fill) + 1)
@@ -119,15 +119,17 @@ class SiPM:
 
 
         if self.sigma > 0:
+            s = (1 - self.scale) * self.gain 
             r = range(-b(self.sigma * 3), b(self.sigma * 3) + 1)
             for pe in self.pe_list: 
                 t = pe.t + self.pre + fill
                 if 0 < t < self.gate + fill: 
-                    g = lambda x: (1 - self.scale) * self.gain * np.exp(-0.5 * ((x / self.sampling - t) / self.sigma)**2)
+                    g = lambda x: s * np.exp(-0.5 * x * x)
+                    b_t = b(t)
                     for i in r:
-                        x = i + b(t)
+                        x = i + b_t
                         if 0 <= x < w.size: 
-                            w[x] += g(x)
+                            w[x] += g(x / self.sampling - t)
 
 
         w = w[b(fill):b(self.gate + fill)] + self.baseline
