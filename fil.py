@@ -68,7 +68,7 @@ class FIL:
         self.__skip(USER_FMT, event[26])
         self.__skip(PHOTON_FMT, event[23])
         pes = [None] * event[20]
-        for i in range(0, event[20]): 
+        for i in range(event[20]): 
             pes[i] = PE(self.__get(PHOTO_ELECTRON_FMT, False))
         self.__skip(PHOTO_ELECTRON_FMT, event[21])
         self.__skip(PHOTO_ELECTRON_FMT, event[22])
