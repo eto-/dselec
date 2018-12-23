@@ -8,6 +8,7 @@ class PET(Enum):
     DCR = 2
     AP = 3
     DICT = 4
+    PHCT = 5
 
 class PE:
     def __init__(self, t, pet, c):
@@ -28,6 +29,7 @@ class SiPM:
         self.ap = float(conf['ap'])
         self.ap_tau = float(conf['ap-tau'])
         self.dict = float(conf['dict'])
+        self.phct = float(conf['phct'])
 
         self.sigma = float(conf['sigma'])
         self.scale = float(conf['scale'])
@@ -46,34 +48,22 @@ class SiPM:
 
         self.pe_list = []
 
-    def _add_pe(self, t, pet, c = 1): 
-        if self.spread >= 0:
-            self.pe_list.append(PE(t, pet, c * np.random.normal(1, self.spread)))
-        else:
-            self.pe_list.append(PE(t, pet, c))
-
     def add_pes(self, ts):
         if isinstance(ts, (int, float)): ts = [ ts ]
         for t in ts: 
-            self._add_pe(t, PET.PE)
+            self.__add_pe(t, PET.PE)
 
-    def add_dcr(self, start=np.nan):
-        if self.dcr > 0:
-            if np.isnan(start): start = -self.gate
-            n = np.random.poisson((2 * self.gate - start) * self.dcr)
-            if n:
-                ts = np.random.uniform(start, 2 * self.gate, n)
-                for t in ts: self._add_pe(t, PET.DCR)
 
     def trigger(self, skip_threshold = False):
+        if not self.pe_list: return
+
         self.pe_list.sort(key=lambda x: x.t)
 
         t0 = np.nan
         for pe in self.pe_list:
-            if pe.pet == PET.PE or pe.pet == PET.DCR:
-                if not self.thresh or skip_threshold or pe.c > self.thresh:
-                    t0 = pe.t
-                    break
+            if not self.thresh or skip_threshold or pe.c > self.thresh:
+                t0 = pe.t
+                break
 #                else: print("lost " + str(pe))
 #                np.random.sample() < self.eff:
 
@@ -87,21 +77,13 @@ class SiPM:
 
 
     def add_noises(self):
+        self.__add_dcr()
+
         if not self.pe_list: return
+        self.__add_phct()
+        self.__add_dict()
+        self.__add_ap()
 
-        if self.dict > 0:
-            for pe in self.pe_list:
-                if pe.pet == PET.PE or pe.pet == PET.DCR:
-                    n = np.random.poisson(self.dict)
-                    for i in range(0, n): self._add_pe(pe.t, PET.DICT)
-
-        if self.ap > 0 and self.ap_tau > 0:
-            for pe in self.pe_list:
-                if pe.pet != PET.AP:
-                    if np.random.sample() < self.ap:
-                        t = np.random.exponential(self.ap_tau)
-                        c = 1 - np.exp(-t / self.tau)
-                        self._add_pe(pe.t + t, PET.AP, c)
 
 
     def wav(self):
@@ -145,6 +127,44 @@ class SiPM:
 
 
 
+    def __add_pe(self, t, pet, c = 1): 
+        if self.spread >= 0:
+            self.pe_list.append(PE(t, pet, c * np.random.normal(1, self.spread)))
+        else:
+            self.pe_list.append(PE(t, pet, c))
 
+
+    def __phct(self):
+        r = 0
+        for i in range(np.random.poisson(self.phct)): r += self.__phct()
+        return r
+
+    def __add_dcr(self, start=np.nan):
+        if self.dcr > 0:
+            if np.isnan(start): start = -self.gate
+            n = np.random.poisson((2 * self.gate - start) * self.dcr)
+            if n:
+                ts = np.random.uniform(start, 2 * self.gate, n)
+                for t in ts: self.__add_pe(t, PET.DCR)
+
+    def __add_phct(self):
+        if self.phct > 0:
+            for k in range(len(self.pe_list)):
+                n = self.__phct()
+                for i in range(n): self.__add_pe(self.pe_list[k].t, PET.PECT)
+
+    def __add_dict(self):
+        if self.dict > 0:
+            for k in range(len(self.pe_list)):
+                n = np.random.poisson(self.dict)
+                for i in range(n): self.__add_pe(self.pe_list[k].t, PET.DICT)
+
+    def __add_ap(self):
+        if self.ap > 0 and self.ap_tau > 0:
+            for k in range(len(self.pe_list)):
+                if np.random.sample() < self.ap:
+                    t = np.random.exponential(self.ap_tau)
+                    c = 1 - np.exp(-t / self.tau)
+                    self.__add_pe(self.pe_list[k].t + t, PET.AP, c)
 
 
