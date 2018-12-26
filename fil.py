@@ -28,7 +28,7 @@ class FIL:
     def __init__(self, conf):
         self.file_name = conf['input']
         self.dummy = self.file_name == 'none'
-        if (self.dummy) return
+        if self.dummy: return
 
         self.file = open(self.file_name, "rb")
         self.header = HEADER(self.__get(HEADER_FMT))

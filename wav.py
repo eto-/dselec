@@ -3,11 +3,10 @@ import numpy as np
 
 class WAV:
     def __init__(self, conf):
-        if conf['output'] == 'none':
-            self.dummy = True
-            return
+        self.file_name = conf['output']
+        self.dummy = self.file_name == 'none'
+        if self.dummy: return
 
-        self.dummy = False
         self.file = wav.open(conf['output'], 'wb')
         self.file.setnchannels(1)
         self.file.setsampwidth(2)
