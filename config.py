@@ -12,7 +12,7 @@ class Config:
 
         self.__cp(c)
         
-    def current(self): return self.c['__current__']
+    def __call__(self): return self.c['__current__']
     def all(self): return self.c
 
     def __argv(self):
@@ -48,7 +48,8 @@ class Config:
             self.c[v[0]][v[1]] = v[2]
 
 
-        self.c['__current__'] = dict(self.c.items(self.c['base'].get('daq', 'daq')) + 
+        self.c['__current__'] = dict(self.c.items('base') + 
+                                     self.c.items(self.c['base'].get('daq', 'daq')) + 
                                      self.c.items(self.c['base'].get('sipm', 'sipm')) +
                                      self.c.items(self.c['base'].get('arma', 'arma')))
 
