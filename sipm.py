@@ -21,7 +21,8 @@ class PE:
         return "PE at " + "{:.2e}".format(self.t) + " type " + str(self.pet) + " charge " + "{:.2f}".format(self.c)
 
 class SiPM:
-    def __init__(self, conf):
+    def __init__(self, conf, id):
+        self.id = id
         self.gain = float(conf['gain'])
         self.spread = float(conf['spread'])
         self.tau = float(conf['tau'])
@@ -69,11 +70,13 @@ class SiPM:
 
         if np.isnan(t0): 
             self.pe_list.clear()
-            return
+            return False
 
         r = np.random.normal(0, self.timing)
         for i, o in enumerate(self.pe_list):
             self.pe_list[i].t = o.t - t0 + r
+
+        return True
 
 
     def add_noises(self):
@@ -87,7 +90,8 @@ class SiPM:
 
 
     def wav(self):
-        b = lambda t: int(np.round(t * self.sampling))
+        #b = lambda t: int(np.round(t * self.sampling))
+        b = lambda t: int(t * self.sampling)
 
         fill = self.tau * 3
         w = np.zeros(b(self.gate + fill) + 1)
