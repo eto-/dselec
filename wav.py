@@ -2,13 +2,13 @@ import wave as wav
 import numpy as np
 
 class WAV:
-    def __init__(self, conf = None):
-        if conf is None:
+    def __init__(self, conf):
+        if conf['output'] == 'none':
             self.dummy = True
             return
 
         self.dummy = False
-        self.file = wav.open(conf['file'], 'wb')
+        self.file = wav.open(conf['output'], 'wb')
         self.file.setnchannels(1)
         self.file.setsampwidth(2)
         self.file.setframerate(int(float(conf['sampling'])/1e6))
