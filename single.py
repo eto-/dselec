@@ -11,12 +11,12 @@ class Main:
     def __init__(self):
         self.c = Config()
 
-        self.o = WAV(self.c.current())
-        self.s = SiPM(self.c.current())
+        self.o = WAV(self.c())
+        self.s = SiPM(self.c(), 1)
 
 
     def test_loop(self, n, npe=1, noises=True, rate=100):
-        bs = float(self.c.current()['baseline'])
+        bs = float(self.c()['baseline'])
         v_sum = []
         v_max = []
         v_sd = []
