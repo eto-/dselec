@@ -8,10 +8,13 @@ class Config:
 
         if not 'o' in c.keys() or not 'i' in c.keys():
             print("input and output files are mandatory")
-            self.__help()
+            self.__help(1)
 
         self.__cp(c)
         
+    def current(self): return self.c['__current__']
+    def all(self): return self.c
+
     def __argv(self):
         r = { 'p' : [], 'c' : 'config.ini' }
 
@@ -30,7 +33,7 @@ class Config:
     def __help(self, n):
         print(sys.argv[0] + "i:o:[c:p:h]")
         print(" -i          input file (fil format)")
-        print(" -o          output file (wav format)")
+        print(" -o          output file (wav format), none for nothing")
         print(" -c file     configuration file (default config.ini)")
         print(" -p s:n:v    configuration option in section s, name n, value v (in case of spaces quotes are needed)")
         print(" -h          this help")
@@ -54,6 +57,4 @@ class Config:
 
         if self.c.has_option('base', 'seed'): np.random.seed(int(self.c['base']['seed']))
 
-    def current(self): self.c['__current__']
-    def all(self): self.c
 
