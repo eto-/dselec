@@ -1,32 +1,22 @@
 #!/usr/bin/env python3
-import configparser as cp
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+from config import Config
 from sipm import SiPM
 from wav import WAV
 import cProfile
 
 class Main:
     def __init__(self, input=None, output=None):
-        self.c = cp.ConfigParser()
-        self.c.read('config.ini')
-        self.c['__current__'] = dict(self.c.items(self.c['base'].get('daq', 'daq')) + 
-                                     self.c.items(self.c['base'].get('sipm', 'sipm')) +
-                                     self.c.items(self.c['base'].get('arma', 'arma')))
+        self.c = Config()
 
-        if output is not None:
-            self.c['__current__']['file'] = output
-            self.o = WAV(c['__current__'])
-        else: self.o = WAV()
-        
-        if self.c.has_option('base', 'seed'): np.random.seed(int(self.c['base']['seed']))
-
-        self.s = SiPM(self.c['__current__'])
+        self.o = WAV(self.c.current())
+        self.s = SiPM(self.c.current())
 
 
     def test_loop(self, n, npe=1, noises=True, rate=100):
-        bs = float(self.c['__current__']['baseline'])
+        bs = float(self.c.current()['baseline'])
         v_sum = []
         v_max = []
         v_sd = []
