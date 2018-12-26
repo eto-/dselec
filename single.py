@@ -8,7 +8,7 @@ from wav import WAV
 import cProfile
 
 class Main:
-    def __init__(self, input=None, output=None):
+    def __init__(self):
         self.c = Config()
 
         self.o = WAV(self.c.current())
@@ -45,7 +45,7 @@ class Main:
 
 
 
-m = Main(None, None)
+m = Main()
 
 it = 5000
 spe = m.test_loop(it, -1, True)
