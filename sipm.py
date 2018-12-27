@@ -41,11 +41,11 @@ class SiPM:
         self.gate = float(conf['gate']) 
         self.pre = float(conf['pre'])
         self.sampling = float(conf['sampling'])
-        self.binning = int(conf['binning'])
         self.baseline = int(conf['baseline'])
         snr = float(conf['snr'])
         self.noise = self.gain / snr if snr > 0 else 0
-        self.top = 2**int(conf['bits']) * self.binning
+        self.binning = 1
+        self.ceiling = 2**int(conf['bits']) * self.binning
 
         self.pe_list = []
 
@@ -125,7 +125,7 @@ class SiPM:
 
         w = np.round(w / self.binning) * self.binning
 
-        w = np.clip(w, 0, self.top)
+        w = np.clip(w, 0, self.ceiling)
 
         return w.astype(int)
 

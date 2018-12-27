@@ -49,6 +49,7 @@ class Config:
 
 
         self.c['__current__'] = dict(self.c.items('base') + 
+                                     self.c.items(self.c['base'].get('detector', 'ds20k')) + 
                                      self.c.items(self.c['base'].get('daq', 'daq')) + 
                                      self.c.items(self.c['base'].get('sipm', 'sipm')) +
                                      self.c.items(self.c['base'].get('arma', 'arma')))
