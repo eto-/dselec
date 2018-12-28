@@ -12,10 +12,10 @@ class Main:
         self.c = Config()
 
         self.o = WAV(self.c())
-        self.s = SiPM(self.c(), 1)
+        self.s = SiPM(self.c(), 33)
 
 
-    def test_loop(self, n, npe=1, noises=True, rate=100):
+    def test_loop(self, n, npe=1, noises=True, write=True):
         bs = float(self.c()['baseline'])
         v_sum = []
         v_max = []
@@ -32,11 +32,11 @@ class Main:
 
             w = self.s.wav()
 
-            v_sum.append(np.sum(w) - bs * w.size)
-            v_max.append(np.max(w))
-            v_sd.append(np.std(w))
+            v_sum.append(np.sum(w.wav) - bs * w.wav.size)
+            v_max.append(np.max(w.wav))
+            v_sd.append(np.std(w.wav))
 
-            self.o.write(np.random.exponential(1/rate), w)
+            if write: self.o.write(None, [w])
 
         with open('peak_%.1f_%s.txt' % (npe, noises), 'w') as f: 
             for i in v_sum: 
@@ -48,14 +48,14 @@ class Main:
 m = Main()
 
 it = 5000
-spe = m.test_loop(it, -1, True)
-spe2 = m.test_loop(it, -1, False)
+spe = m.test_loop(it, -1, True, False)
+spe2 = m.test_loop(it, -1, False, False)
 spe[0] = spe2[0]
 print("SPE mean charge = %.2f with sd = %.2f (spread = %.2f)" % (spe[0], spe[1], spe[1]/spe[0]))
 
 it = 50000
 n = 1.6
-sim = m.test_loop(it, n, True)
+sim = m.test_loop(it, n, True, True)
 print("Simulated %.1f npe (phct = %.1f)" % (n, n * 1/(1 - m.s.phct)))
 print("Total npe = %.2f with sd = %.2f (spread = %.2f <-> expected %.2f)" % (sim[0] / spe[0], sim[1] / spe[0], sim[1]/sim[0], np.sqrt(spe[0] / sim[0])))
 
