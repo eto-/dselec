@@ -22,8 +22,9 @@ class Main:
 
             for s in self.s: s.clear()
 
-            for pe in ev.pes:
-                self.s[pe.id].add_pes(pe.t)
+            if ev is not None:
+                for pe in ev.pes:
+                    self.s[pe.id].add_pes(pe.t)
 
             w = []
 
@@ -31,7 +32,7 @@ class Main:
                 s.add_noises()
                 if s.trigger(): w.append(s.wav())
 
-            #self.o.write(ev, w)
+            self.o.write(ev, w)
 
             n = n + 1
 
