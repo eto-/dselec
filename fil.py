@@ -24,6 +24,20 @@ class HEADER:
         self.rate = l[5]
         self.detector_flag = l[6]
 
+class EVENT:
+    def __init__(self, event):
+        self.id = event[0]
+        self.pdg = event[1]
+        self.time = event[2]
+        self.energy = event[3]
+        self.s1_energy, self.s2_energy, self.veto_vis_energy, self.mu_vis_energy = event[4:8]
+        self.tpc_dep_energy, self.veto_dep_energy, self.mu_dep_energy = event[8:11]
+        self.position = event[11:14]
+        self.direction = event[14:17]
+        self.center_of_mass = event[17:20]
+        self.npe, self.veto_npe, self.mu_npe, self.nph = event[20:24]
+        self.ndaughters, self.ndeposits, self.nusers = event[24:27]
+
 class FIL:
     def __init__(self, conf):
         self.file_name = conf['input']
@@ -64,23 +78,25 @@ class FIL:
         if self.dummy: return []
 
         size = self.__get('i', False)[0]
-        event = self.__get(EVENT_FMT, False)
+        event = EVENT(self.__get(EVENT_FMT, False))
 
-        self.__skip(DAUGHTER_FMT, event[24])
-        self.__skip(DEPOSIT_FMT, event[25])
-        self.__skip(USER_FMT, event[26])
-        self.__skip(PHOTON_FMT, event[23])
-        pes = [None] * event[20]
-        for i in range(event[20]): 
-            pes[i] = PE(self.__get(PHOTO_ELECTRON_FMT, False))
-        self.__skip(PHOTO_ELECTRON_FMT, event[21])
-        self.__skip(PHOTO_ELECTRON_FMT, event[22])
+        self.__skip(DAUGHTER_FMT, event.ndaughters)
+        self.__skip(DEPOSIT_FMT, event.ndeposits)
+        self.__skip(USER_FMT, event.nusers)
+        self.__skip(PHOTON_FMT, event.nph)
+        d = self.__get(PHOTO_ELECTRON_FMT[0] + PHOTO_ELECTRON_FMT[1:3] * event.npe, False)
+        event.pes = tuple(PE(d[i * 2:i * 2 + 2]) for i in range(event.npe))
+
+        #for i in range(event.npe):
+        #    event.pes[i] = PE(self.__get(PHOTO_ELECTRON_FMT, False))
+        self.__skip(PHOTO_ELECTRON_FMT, event.veto_npe)
+        self.__skip(PHOTO_ELECTRON_FMT, event.mu_npe)
 
         size2 = self.__get('i', False)[0]
 
         assert size == size2
 
-        return pes
+        return event
 
     def __next__(self):
         if self.dummy: return self.read()

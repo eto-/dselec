@@ -20,26 +20,24 @@ class Main:
         for ev in self.i:
             if n >= n_max: break
 
-            for s in self.s: s.pe_list.clear()
+            for s in self.s: s.clear()
 
-            for pe in ev:
+            for pe in ev.pes:
                 self.s[pe.id].add_pes(pe.t)
+
+            w = []
 
             for s in self.s:
                 s.add_noises()
-                if s.trigger(): s.wav()
+                if s.trigger(): w.append(s.wav())
+
+            #self.o.write(ev, w)
 
             n = n + 1
 
 
 
 m = Main()
-#m.loop()
 
-cProfile.run("m.loop()")
-#print("mean2=" + str(np.mean(v2)))
-
-#plt.plot(w)
-#plt.ylabel('waveform [bins]')
-#plt.xlabel('time [samples]')
-#plt.show()
+if m.c.all()['base'].getboolean('profile'): cProfile.run("m.loop()")
+else: m.loop()

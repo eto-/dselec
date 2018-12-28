@@ -49,6 +49,9 @@ class SiPM:
 
         self.pe_list = []
 
+    def clear(self):
+        self.pe_list.clear()
+
     def add_pes(self, ts):
         if isinstance(ts, (int, float)): ts = [ ts ]
         for t in ts: 
