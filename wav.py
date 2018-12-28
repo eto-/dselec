@@ -42,7 +42,7 @@ class WAV:
         for w in ws:
             #uint16_t channel, n_samples, unused[2];
             f = f + wav.struct.pack('=4H', *(w.id, w.wav.size, 0, 0))
-            f = f + b''.join([wav.struct.pack('h', i) for i in w.wav])
+            f = f + wav.struct.pack("=%dh" % w.wav.size, *w.wav)
 
         self.file.writeframes(f)
 
