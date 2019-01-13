@@ -23,10 +23,10 @@ class Main:
         for i in range(n):
             self.s.pe_list.clear()
 
-            if npe < 0: self.s.add_pes(np.zeros(-npe))
-            elif npe > 0: self.s.add_pes(np.random.exponential(1.5e-6, np.random.poisson(npe)))
+            if npe < 0: self.s.add_pes(np.zeros(-npe), noises)
+            elif npe > 0: self.s.add_pes(np.random.exponential(1.5e-6, np.random.poisson(npe)), noises)
             
-            if noises: self.s.add_noises()
+            if noises: self.s.add_dcr()
 
             self.s.trigger(not noises)
 
@@ -50,8 +50,8 @@ m = Main()
 it = 5000
 spe = m.test_loop(it, -1, True, False)
 spe2 = m.test_loop(it, -1, False, False)
+print("SPE mean charge = %.2f (with noise = %.2f) with sd = %.2f (spread = %.2f)" % (spe2[0], spe[0], spe[1], spe[1]/spe2[0]))
 spe[0] = spe2[0]
-print("SPE mean charge = %.2f with sd = %.2f (spread = %.2f)" % (spe[0], spe[1], spe[1]/spe[0]))
 
 it = 50000
 n = 1.6
