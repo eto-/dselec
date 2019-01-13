@@ -56,10 +56,10 @@ class SiPM:
         self.pe_list.clear()
 
 
-    def add_pes(self, ts):
+    def add_pes(self, ts, add_noise=True):
         if isinstance(ts, (int, float)): ts = [ ts ]
         for t in ts: 
-            self.__add_pe(t, SiPM.PE.T.PE)
+            self.__add_pe(t, SiPM.PE.T.PE, add_noise)
 
 
     def trigger(self, skip_threshold = False):
@@ -86,13 +86,13 @@ class SiPM:
         return True
 
 
-    def add_noises(self):
-        self.__add_dcr()
-
-        if not self.pe_list: return
-        self.__add_phct()
-        self.__add_dict()
-        self.__add_ap()
+    def add_dcr(self, start=np.nan):
+        if self.dcr > 0:
+            if np.isnan(start): start = -self.gate
+            n = np.random.poisson((2 * self.gate - start) * self.dcr)
+            if n:
+                ts = np.random.uniform(start, 2 * self.gate, n)
+                for t in ts: self.__add_pe(t, SiPM.PE.T.DCR)
 
 
     def wav(self):
@@ -136,43 +136,37 @@ class SiPM:
         return SiPM.WAV(self.id, w.astype(int))
 
 
-    def __add_pe(self, t, pet, c = 1): 
+    def __add_pe(self, t, pet, add_noise = True, c = 1): 
         if self.spread >= 0:
             self.pe_list.append(SiPM.PE(t, pet, c * np.random.normal(1, self.spread)))
         else:
             self.pe_list.append(SiPM.PE(t, pet, c))
 
+        if (add_noise):
+            self.__add_phct(t, pet)
+            self.__add_dict(t, pet)
+            self.__add_ap(t, pet, c)
+
     def __phct(self):
         r = 0
-        for i in range(np.random.poisson(self.phct)): r += self.__phct()
-        return r
+        for i in range(np.random.poisson(self.phct)): 
+            r += self.__phct()
+        return r + 1 # +1 to account for this phct, to be removed to the total sum
 
-    def __add_dcr(self, start=np.nan):
-        if self.dcr > 0:
-            if np.isnan(start): start = -self.gate
-            n = np.random.poisson((2 * self.gate - start) * self.dcr)
-            if n:
-                ts = np.random.uniform(start, 2 * self.gate, n)
-                for t in ts: self.__add_pe(t, SiPM.PE.T.DCR)
+    def __add_phct(self, t, pet):
+        if self.phct > 0 and pet != SiPM.PE.T.PHCT: # PHCT of PHCT already accounted
+            for i in range(self.__phct() - 1): # phct loop unroll: generate directly phct
+                self.__add_pe(t, SiPM.PE.T.PHCT)
 
-    def __add_phct(self):
-        if self.phct > 0:
-            for k in range(len(self.pe_list)):
-                n = self.__phct()
-                for i in range(n): self.__add_pe(self.pe_list[k].t, SiPM.PE.T.PECT)
+    def __add_dict(self, t, pet):
+        if self.dict > 0 and pet != SiPM.PE.T.DICT: # DICT of DICT already accounted
+            for i in range(np.random.poisson(self.dict / (1 - self.dict)): # dict loop unroll: gnerate directly poissonian distributed dict from mean value
+                self.__add_pe(t, SiPM.PE.T.DICT)
 
-    def __add_dict(self):
-        if self.dict > 0:
-            for k in range(len(self.pe_list)):
-                n = np.random.poisson(self.dict)
-                for i in range(n): self.__add_pe(self.pe_list[k].t, SiPM.PE.T.DICT)
-
-    def __add_ap(self):
-        if self.ap > 0 and self.ap_tau > 0:
-            for k in range(len(self.pe_list)):
-                if np.random.sample() < self.ap:
-                    t = np.random.exponential(self.ap_tau)
-                    c = 1 - np.exp(-t / self.tau)
-                    self.__add_pe(self.pe_list[k].t + t, SiPM.PE.T.AP, c)
-
+    def __add_ap(self, t, pet, c):
+        if self.ap > 0 and self.ap_tau > 0 and c > 0.1: # loop not unrolled, therefore AP of AP has to be generated
+            if np.random.sample() < self.ap:
+                t.ap = np.random.exponential(self.ap_tau)
+                c = 1 - np.exp(-t.ap / self.tau)
+                self.__add_pe(t + t.ap, SiPM.PE.T.AP, c)
 
