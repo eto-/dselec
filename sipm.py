@@ -44,9 +44,12 @@ class SiPM:
         self.gate = float(conf['gate']) 
         self.pre = float(conf['pre'])
         self.sampling = float(conf['sampling'])
-        self.baseline = int(conf['baseline'])
         snr = float(conf['snr'])
         self.noise = self.gain / snr if snr > 0 else 0
+        self.baseline = int(conf['baseline'])
+        if (self.baseline < 4 * self.noise):
+            print("warning: baseline value is too small and noise clipping will happen: ensure baseline > 4 gain / noise")
+
         self.binning = 1
         self.ceiling = 2**int(conf['bits']) * self.binning
 
@@ -145,28 +148,35 @@ class SiPM:
         if (add_noise):
             self.__add_phct(t, pet)
             self.__add_dict(t, pet)
-            self.__add_ap(t, pet, c)
+            self.__add_ap(t, pet)
 
-    def __phct(self):
+    @staticmethod
+    def poissonian_loop(p): # mean p/(1-p) -- sd = (1-p)/sqrt(mean) => distrution is not poissonian
         r = 0
-        for i in range(np.random.poisson(self.phct)): 
-            r += self.__phct()
-        return r + 1 # +1 to account for this phct, to be removed to the total sum
+        for i in range(np.random.poisson(p)): 
+            r += SiPM.poissonian_loop(p)
+        return r + 1 # +1 to account for this entry
+
+    @staticmethod
+    def binomial_loop(p): # mean p/(1-p) -- sd = (1-p)/sqrt(mean) => distrution is not poissonian
+        if np.random.sample() > p:
+            return 1
+        return 1 + SiPM.binomial_loop(p)
 
     def __add_phct(self, t, pet):
         if self.phct > 0 and pet != SiPM.PE.T.PHCT: # PHCT of PHCT already accounted
-            for i in range(self.__phct() - 1): # phct loop unroll: generate directly phct
+            for i in range(self.poissonian_loop(self.phct) - 1): # phct loop unroll: generate directly poissonian distributed phct from probability
                 self.__add_pe(t, SiPM.PE.T.PHCT)
 
     def __add_dict(self, t, pet):
         if self.dict > 0 and pet != SiPM.PE.T.DICT: # DICT of DICT already accounted
-            for i in range(np.random.poisson(self.dict / (1 - self.dict)): # dict loop unroll: gnerate directly poissonian distributed dict from mean value
+            for i in range(self.poissonian_loop(self.dict) - 1): # dict loop unroll: gnerate directly poissonian distributed dict from probability
                 self.__add_pe(t, SiPM.PE.T.DICT)
 
-    def __add_ap(self, t, pet, c):
-        if self.ap > 0 and self.ap_tau > 0 and c > 0.1: # loop not unrolled, therefore AP of AP has to be generated
-            if np.random.sample() < self.ap:
-                t.ap = np.random.exponential(self.ap_tau)
-                c = 1 - np.exp(-t.ap / self.tau)
-                self.__add_pe(t + t.ap, SiPM.PE.T.AP, c)
+    def __add_ap(self, t, pet):
+        if self.ap > 0 and self.ap_tau > 0 and pet != SiPM.PE.T.AP: # AP of AP already accounted
+            for i in range(self.binomial_loop(self.ap) - 1): # ap loop unroll: gnerate directly binomial distributed ap from probability
+                t_ap = np.random.exponential(self.ap_tau)
+                c = 1 - np.exp(-t_ap / self.tau)
+                self.__add_pe(t + t_ap, SiPM.PE.T.AP, c)
 
