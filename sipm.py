@@ -26,32 +26,23 @@ class SiPM:
 
     def __init__(self, conf, id):
         self.id = id
-        self.gain = float(conf['gain'])
+        self.gain, self.tau, self.sigma, self.scale = map(float, (conf['gain'], conf['tau'], conf['sigma'], conf['scale']))
+
         self.spread = float(conf['spread'])
-        self.tau = float(conf['tau'])
         self.dcr = float(conf['dcr'])
-        self.ap = float(conf['ap'])
         self.ap_tau = float(conf['ap-tau'])
-        self.dict = float(conf['dict'])
-        self.phct = float(conf['phct'])
+        self.ap, self.dict, self.phct = map(float, (conf['ap'], conf['dict'], conf['phct']))
+        if not 0 <= self.ap < 1 or not 0 <= self.dict < 1 or not 0 <= self.phct < 1:
+            raise ValueError('ap, dict and phct are probabilities in the range [0,1)')
 
-        self.sigma = float(conf['sigma'])
-        self.scale = float(conf['scale'])
 
-        eff = float(conf['eff'])
-        self.thresh = 0 if not eff > 0 or not self.spread > 0 else norm.ppf(1 - eff, 1, self.spread)
-        self.timing = float(conf['timing'])
-        self.gate = float(conf['gate']) 
-        self.pre = float(conf['pre'])
-        self.sampling = float(conf['sampling'])
-        snr = float(conf['snr'])
-        self.noise = self.gain / snr if snr > 0 else 0
+        self.gate, self.pre, self.sampling, self.jitter = map(float, (conf['gate'], conf['pre'], conf['sampling'], conf['jitter']))
+        eff = float(conf['eff']); self.thresh = 0 if not eff > 0 or not self.spread > 0 else norm.ppf(1 - eff, 1, self.spread)
+        snr = float(conf['snr']); self.noise = self.gain / snr if snr > 0 else 0
+        self.ceiling = 2**int(conf['bits'])
         self.baseline = int(conf['baseline'])
-        if (self.baseline < 4 * self.noise):
+        if self.baseline < 4 * self.noise:
             print("warning: baseline value is too small and noise clipping will happen: ensure baseline > 4 gain / noise")
-
-        self.binning = 1
-        self.ceiling = 2**int(conf['bits']) * self.binning
 
         self.pe_list = []
 
@@ -82,9 +73,9 @@ class SiPM:
             self.pe_list.clear()
             return False
 
-        r = np.random.normal(0, self.timing)
+        j = np.random.normal(0, self.jitter) if self.jitter > 0 else 0
         for i, o in enumerate(self.pe_list):
-            self.pe_list[i].t = o.t - t0 + r
+            self.pe_list[i].t = o.t - t0 + j
 
         return True
 
@@ -132,7 +123,7 @@ class SiPM:
         if self.noise > 0:
             w += np.random.normal(0, self.noise, w.size)
 
-        w = np.round(w / self.binning) * self.binning
+        w = np.round(w)
 
         w = np.clip(w, 0, self.ceiling)
 
