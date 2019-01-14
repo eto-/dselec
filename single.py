@@ -15,7 +15,7 @@ class Main:
         self.s = SiPM(self.c(), 33)
 
 
-    def test_loop(self, n, npe=1, noises=True):
+    def test_loop(self, n, npe=1, noises=True, write=True):
         bs = float(self.c()['baseline'])
         v_sum = []
         v_max = []
@@ -36,7 +36,7 @@ class Main:
             v_max.append(np.max(w.wav))
             v_sd.append(np.std(w.wav))
 
-            self.o.write(None, [w])
+            if (write): self.o.write(None, [w])
 
         with open('peak_%.1f_%s.txt' % (npe, noises), 'w') as f: 
             for i in v_sum: 
@@ -48,8 +48,8 @@ class Main:
 m = Main()
 
 it = 5000
-spe = m.test_loop(it, -1, True)
-spe2 = m.test_loop(it, -1, False)
+spe = m.test_loop(it, -1, True, False)
+spe2 = m.test_loop(it, -1, False, False)
 print("SPE mean charge = %.2f (with noise = %.2f) with sd = %.2f (spread = %.2f)" % (spe2[0], spe[0], spe[1], spe[1]/spe2[0]))
 spe[0] = spe2[0]
 
