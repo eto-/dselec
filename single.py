@@ -50,7 +50,7 @@ m = Main()
 it = 5000
 spe = m.test_loop(it, -1, True, False)
 spe2 = m.test_loop(it, -1, False, False)
-print("SPE mean charge = %.2f (with noise = %.2f) with sd = %.2f (spread = %.2f)" % (spe2[0], spe[0], spe[1], spe[1]/spe2[0]))
+print("SPE mean charge = %.2f (with noise = %.2f <-> %.2f) with sd = %.2f (spread = %.2f)" % (spe2[0], spe[0], spe[0]/spe2[0], spe[1], spe[1]/spe2[0]))
 spe[0] = spe2[0]
 
 it = 50000

@@ -37,7 +37,7 @@ class SiPM:
 
 
         self.gate, self.pre, self.sampling, self.jitter = map(float, (conf['gate'], conf['pre'], conf['sampling'], conf['jitter']))
-        eff = float(conf['eff']); self.thresh = 0 if not eff > 0 or not self.spread > 0 else norm.ppf(1 - eff, 1, self.spread)
+        eff = float(conf['eff']); self.thresh = norm.ppf(1 - eff, 1, self.spread) if eff > 0 and self.spread > 0 else 0
         snr = float(conf['snr']); self.noise = self.gain / snr if snr > 0 else 0
         self.ceiling = 2**int(conf['bits'])
         self.baseline = int(conf['baseline'])
