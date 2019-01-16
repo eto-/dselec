@@ -7,7 +7,8 @@ class WAV:
         self.dummy = self.file_name == 'none'
         if self.dummy: return
 
-        self.file = wav.open(conf['output'], 'wb')
+        self.format = float(conf.get('wav_format', '2.0'))
+        self.file = wav.open(self.file_name, 'wb')
         self.file.setnchannels(1)
         self.file.setsampwidth(2)
         self.file.setframerate(int(float(conf['sampling'])/1e6))
@@ -34,15 +35,27 @@ class WAV:
 
         time_tag = int(self.time / 8e-9) % 0xFFFFFFFF
         cpu_time_ms = int(round(self.time * 1e3))
-        #uint16_t marker, header_length;
-        #uint32_t counter, time_tag, n_samples, cpu_time_ms;
-        #uint16_t n_channels, version;
-        #uint32_t data_length, unused[3]
-        f = wav.struct.pack('=2H4I2H4I', *(0xffff, 20, self.counter, time_tag, 0, cpu_time_ms, len(ws), 200, data_len, 0, 0, 0))
-        for w in ws:
-            #uint16_t channel, n_samples, unused[2];
-            f = f + wav.struct.pack('=4H', *(w.id, w.wav.size, 0, 0))
-            f = f + wav.struct.pack("=%dh" % w.wav.size, *w.wav)
+
+        if self.format >= 2:
+            #uint16_t marker, header_length;
+            #uint32_t counter, time_tag, n_samples, cpu_time_ms;
+            #uint16_t n_channels, version;
+            #uint32_t data_length, unused[3]
+            f = wav.struct.pack('=2H4I2H4I', *(0xffff, 20, self.counter, time_tag, 0, cpu_time_ms, len(ws), 200, data_len, 0, 0, 0))
+            for w in ws:
+                #uint16_t channel, n_samples, unused[2];
+                f = f + wav.struct.pack('=4H', *(w.id, w.wav.size, 0, 0))
+                f = f + wav.struct.pack("=%dh" % w.wav.size, *w.wav)
+        else:
+            # uint16_t marker, header_length;
+            # uint32_t counter, time_tag, n_samples, cpu_time_ms, n_channels, unused[4];
+            # uint16_t samples[0];
+            f = wav.struct.pack('=2H9I', *(0xffff, 20, self.counter, time_tag, ws[0].wav.size, cpu_time_ms, len(ws), 0, 0, 0, 0)) 
+            for w in ws:
+                if w.wav.size != ws[0].wav.size:
+                    raise ValueError('wav formats earlier than 2.0 require constant waveforms for the same event')
+                f = f + wav.struct.pack("=%dh" % w.wav.size, *w.wav)
+
 
         self.file.writeframes(f)
 
