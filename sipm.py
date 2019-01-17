@@ -17,12 +17,14 @@ class SiPM:
             self.t = t
             self.c = c
         def __str__(self):
-            return "PE at " + "{:.2e}".format(self.t) + " type " + str(self.pet) + " charge " + "{:.2f}".format(self.c)
+            return 'PE at %.2e type %s charge %.2f' % (self.t, str(self.pet), self.c)
+
 
     class WAV:
         def __init__(self, id, w):
             self.id = id
             self.wav = w
+
 
     def __init__(self, conf, id):
         self.id = id
@@ -45,6 +47,7 @@ class SiPM:
             print("warning: baseline value is too small and noise clipping will happen: ensure baseline > 4 gain / noise")
 
         self.pe_list = []
+
 
     def clear(self):
         self.pe_list.clear()
@@ -105,9 +108,6 @@ class SiPM:
                     w[t_b] += pe.c * np.exp(-skew_b(t, t_b) / tau_b)
             w = lfilter([self.scale * self.gain], [1, 1 / tau_b - 1], w)
 
-
-        #import pdb; pdb.set_trace()
-
         if self.sigma > 0:
             s = (1 - self.scale) * self.gain 
             g_b = lambda x: s * np.exp(-0.5 * x * x)
@@ -134,6 +134,25 @@ class SiPM:
         return SiPM.WAV(self.id, w.astype(int))
 
 
+    @staticmethod
+    def poissonian_loop(p): # mean p/(1-p) -- sd = (1-p)/sqrt(mean) => distribution is not poissonian
+        def __poissonian_loop():
+            r = 1 # 1 to account for this entry
+            for i in range(np.random.poisson(p)): 
+                r += __poissonian_loop()
+            return r
+        return __poissonian_loop(p) - 1 # -1 is required because __poissonian_loop starts from 1
+
+
+    @staticmethod
+    def binomial_loop(p): # mean p/(1-p) -- sd = (1-p)^1.5/sqrt(mean) => distribution is not poissonian
+        def __binomial_loop():
+            if np.random.uniform() > p:
+                return 1
+            return 1 + __binomial_loop()
+        return __binomial_loop() - 1 # -1 is required because __binomial_loop starts from 1
+
+
     def __add_pe(self, t, pet, add_noise = True, c = 1): 
         if self.spread >= 0:
             self.pe_list.append(SiPM.PE(t, pet, c * np.random.normal(1, self.spread)))
@@ -141,38 +160,27 @@ class SiPM:
             self.pe_list.append(SiPM.PE(t, pet, c))
 
         if add_noise:
-            self.__add_phct(t, pet)
-            self.__add_dict(t, pet)
-            self.__add_ap(t, pet)
+            self.__add_phct(t, pet, c)
+            self.__add_dict(t, pet, c)
+            self.__add_ap(t, pet, c)
 
-    @staticmethod
-    def poissonian_loop(p): # mean p/(1-p) -- sd = (1-p)/sqrt(mean) => distribution is not poissonian
-        r = 0
-        for i in range(np.random.poisson(p)): 
-            r += SiPM.poissonian_loop(p)
-        return r + 1 # +1 to account for this entry
 
-    @staticmethod
-    def binomial_loop(p): # mean p/(1-p) -- sd = (1-p)^1.5/sqrt(mean) => distribution is not poissonian
-        if np.random.sample() > p:
-            return 1
-        return 1 + SiPM.binomial_loop(p)
-
-    def __add_phct(self, t, pet):
+    def __add_phct(self, t, pet, c):
         if self.phct > 0 and pet != SiPM.PE.T.PHCT: # PHCT of PHCT already accounted
-            for i in range(self.poissonian_loop(self.phct) - 1): # phct loop unroll: generate directly poissonian distributed phct from probability
+            for i in range(self.poissonian_loop(self.phct)): # phct loop unroll: generate directly poissonian distributed phct from probability
                 self.__add_pe(t, SiPM.PE.T.PHCT)
 
-    def __add_dict(self, t, pet):
+
+    def __add_dict(self, t, pet, c):
         if self.dict > 0 and pet != SiPM.PE.T.DICT: # DICT of DICT already accounted
-            for i in range(self.poissonian_loop(self.dict) - 1): # dict loop unroll: gnerate directly poissonian distributed dict from probability
+            for i in range(self.poissonian_loop(self.dict)): # dict loop unroll: gnerate directly poissonian distributed dict from probability
                 self.__add_pe(t, SiPM.PE.T.DICT)
 
-    def __add_ap(self, t, pet):
+
+    def __add_ap(self, t, pet, c):
         if self.ap > 0 and self.ap_tau > 0 and pet != SiPM.PE.T.AP: # AP of AP already accounted
-            for i in range(self.binomial_loop(self.ap) - 1): # ap loop unroll: gnerate directly binomial distributed ap from probability
-                t_ap = np.random.exponential(self.ap_tau)
-                c = 1 - np.exp(-t_ap / self.tau)
+            for t_ap in np.random.exponential(self.ap_tau, self.binomial_loop(self.ap)): # ap loop unroll: gnerate directly binomial distributed ap from probability
+                c = 1 - np.exp(-t_ap / self.tau) # at every pe the OV resets and the new charge only depends on the previous pe.
                 t += t_ap
-                self.__add_pe(t, SiPM.PE.T.AP, c=1)
+                self.__add_pe(t, SiPM.PE.T.AP, True, c)
 
