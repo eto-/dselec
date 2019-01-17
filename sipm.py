@@ -90,35 +90,39 @@ class SiPM:
 
 
     def wav(self):
-        #b = lambda t: int(np.round(t * self.sampling))
-        b = lambda t: int(t * self.sampling)
+        bin = lambda t: int(t * self.sampling) # truncating to the previous bin, fine corrections done on spot
+        skew_b = lambda t, t_b: t * self.sampling - t_b
+        tau_b = self.tau * self.sampling
 
         fill = self.tau * 3
-        w = np.zeros(b(self.gate + fill) + 1)
+        w = np.zeros(bin(self.gate + fill) + 1)
 
         if self.tau > 0:
             for pe in self.pe_list: 
                 t = pe.t + self.pre + fill
                 if 0 < t < self.gate + fill:
-                    w[b(t)] += pe.c
-            w = lfilter([self.scale * self.gain], [1, 1 / (self.tau * self.sampling) - 1], w)
+                    t_b = bin(t)
+                    w[t_b] += pe.c * np.exp(-skew_b(t, t_b) / tau_b)
+            w = lfilter([self.scale * self.gain], [1, 1 / tau_b - 1], w)
 
+
+        #import pdb; pdb.set_trace()
 
         if self.sigma > 0:
             s = (1 - self.scale) * self.gain 
-            r = range(-b(self.sigma * 3), b(self.sigma * 3) + 1)
+            g_b = lambda x: s * np.exp(-0.5 * x * x)
+            r_b = range(-bin(self.sigma * 3), bin(self.sigma * 3) + 1)
             for pe in self.pe_list: 
                 t = pe.t + self.pre + fill
                 if 0 < t < self.gate + fill: 
-                    g = lambda x: s * np.exp(-0.5 * x * x)
-                    b_t = b(t)
-                    for i in r:
-                        x = i + b_t
+                    t_b = bin(t)
+                    for b in r_b:
+                        x = t_b + b
                         if 0 <= x < w.size: 
-                            w[x] += g(x / self.sampling - t)
+                            w[x] += pe.c * g_b(b + skew_b(t, t_b))
 
 
-        w = w[b(fill):b(self.gate + fill)] + self.baseline
+        w = w[bin(fill):bin(self.gate + fill)] + self.baseline
 
         if self.noise > 0:
             w += np.random.normal(0, self.noise, w.size)
@@ -136,20 +140,20 @@ class SiPM:
         else:
             self.pe_list.append(SiPM.PE(t, pet, c))
 
-        if (add_noise):
+        if add_noise:
             self.__add_phct(t, pet)
             self.__add_dict(t, pet)
             self.__add_ap(t, pet)
 
     @staticmethod
-    def poissonian_loop(p): # mean p/(1-p) -- sd = (1-p)/sqrt(mean) => distrution is not poissonian
+    def poissonian_loop(p): # mean p/(1-p) -- sd = (1-p)/sqrt(mean) => distribution is not poissonian
         r = 0
         for i in range(np.random.poisson(p)): 
             r += SiPM.poissonian_loop(p)
         return r + 1 # +1 to account for this entry
 
     @staticmethod
-    def binomial_loop(p): # mean p/(1-p) -- sd = (1-p)/sqrt(mean) => distrution is not poissonian
+    def binomial_loop(p): # mean p/(1-p) -- sd = (1-p)^1.5/sqrt(mean) => distribution is not poissonian
         if np.random.sample() > p:
             return 1
         return 1 + SiPM.binomial_loop(p)
@@ -169,5 +173,6 @@ class SiPM:
             for i in range(self.binomial_loop(self.ap) - 1): # ap loop unroll: gnerate directly binomial distributed ap from probability
                 t_ap = np.random.exponential(self.ap_tau)
                 c = 1 - np.exp(-t_ap / self.tau)
-                self.__add_pe(t + t_ap, SiPM.PE.T.AP, c)
+                t += t_ap
+                self.__add_pe(t, SiPM.PE.T.AP, c=1)
 
