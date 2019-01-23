@@ -59,6 +59,15 @@ class SiPM:
             self.__add_pe(t, SiPM.PE.T.PE, add_noise)
 
 
+    def add_dcr(self, start=np.nan):
+        if self.dcr > 0:
+            if np.isnan(start): start = -self.gate
+            n = np.random.poisson((2 * self.gate - start) * self.dcr)
+            if n:
+                ts = np.random.uniform(start, 2 * self.gate, n)
+                for t in ts: self.__add_pe(t, SiPM.PE.T.DCR)
+
+
     def trigger(self, skip_threshold = False):
         if not self.pe_list: return
 
@@ -81,15 +90,6 @@ class SiPM:
             self.pe_list[i].t = o.t - t0 + j
 
         return True
-
-
-    def add_dcr(self, start=np.nan):
-        if self.dcr > 0:
-            if np.isnan(start): start = -self.gate
-            n = np.random.poisson((2 * self.gate - start) * self.dcr)
-            if n:
-                ts = np.random.uniform(start, 2 * self.gate, n)
-                for t in ts: self.__add_pe(t, SiPM.PE.T.DCR)
 
 
     def wav(self):
@@ -141,7 +141,7 @@ class SiPM:
             for i in range(np.random.poisson(p)): 
                 r += __poissonian_loop()
             return r
-        return __poissonian_loop(p) - 1 # -1 is required because __poissonian_loop starts from 1
+        return __poissonian_loop() - 1 # -1 is required because __poissonian_loop starts from 1
 
 
     @staticmethod
@@ -179,7 +179,8 @@ class SiPM:
 
     def __add_ap(self, t, pet, c):
         if self.ap > 0 and self.ap_tau > 0 and pet != SiPM.PE.T.AP: # AP of AP already accounted
-            for t_ap in np.random.exponential(self.ap_tau, self.binomial_loop(self.ap)): # ap loop unroll: gnerate directly binomial distributed ap from probability
+            n = self.binomial_loop(self.ap) # ap loop unroll: gnerate directly binomial distributed ap from probability
+            for t_ap in 1 / np.random.exponential(1 / self.ap_tau, n): # 1/exp(tau/t) seems closer to the real distribution
                 c = 1 - np.exp(-t_ap / self.tau) # at every pe the OV resets and the new charge only depends on the previous pe.
                 t += t_ap
                 self.__add_pe(t, SiPM.PE.T.AP, True, c)
