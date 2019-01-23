@@ -29,7 +29,7 @@ class Main:
             w = []
 
             for s in self.s:
-                s.add_noises()
+                s.add_dcr()
                 if s.trigger(): w.append(s.wav())
 
             self.o.write(ev, w)
